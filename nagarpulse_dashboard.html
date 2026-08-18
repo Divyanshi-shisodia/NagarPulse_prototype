@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NagarPulse — Incident Command Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1219;
+    --panel:#101c26;
+    --panel2:#152431;
+    --border:#20323f;
+    --border-soft:#1a2933;
+    --text:#e8eff4;
+    --text-dim:#82969f;
+    --text-faint:#4d616c;
+    --teal:#3fd7c4;
+    --teal-dim:#1f3d3c;
+    --amber:#f0a93c;
+    --amber-dim:#3a3021;
+    --red:#e35459;
+    --red-dim:#3a1f22;
+    --green:#3ecf8e;
+    --green-dim:#173327;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(63,215,196,0.07), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(224,105,80,0.05), transparent 45%);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ===== Header ===== */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 28px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, rgba(16,28,38,0.9), rgba(16,28,38,0.6));
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(6px);
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand .mark{
+    width:34px;height:34px;border-radius:8px;
+    background:conic-gradient(from 200deg, var(--teal), #1a8f82, var(--teal));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk';font-weight:700;color:#03181a;font-size:15px;
+    flex-shrink:0;
+  }
+  .brand h1{font-size:17px;margin:0;font-weight:600;letter-spacing:0.2px;font-family:'Space Grotesk';}
+  .brand .sub{font-size:11px;color:var(--text-dim);margin-top:1px;letter-spacing:0.4px;text-transform:uppercase;}
+  .headright{display:flex;align-items:center;gap:22px;}
+  .sysstatus{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .clock{font-size:12.5px;color:var(--text-faint);}
+
+  /* ===== Layout ===== */
+  .grid{
+    display:grid;
+    grid-template-columns:340px 1fr 320px;
+    gap:16px;
+    padding:18px;
+    max-width:1440px;margin:0 auto;
+    align-items:start;
+  }
+  @media (max-width:1100px){
+    .grid{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+  }
+  .panel + .panel{margin-top:16px;}
+  .panel h2{
+    font-family:'Space Grotesk';font-size:13px;font-weight:600;
+    letter-spacing:0.5px;text-transform:uppercase;color:var(--text-dim);
+    margin:0 0 14px 0;display:flex;align-items:center;justify-content:space-between;
+  }
+  .panel h2 .tag{
+    font-size:10px;font-family:'IBM Plex Mono';color:var(--teal);
+    background:var(--teal-dim);padding:2px 7px;border-radius:5px;letter-spacing:0.3px;
+  }
+
+  /* ===== Physical / sensor sim ===== */
+  .road-scene{
+    border:1px solid var(--border-soft);border-radius:8px;
+    padding:14px 14px 10px;background:#0c1720;
+    margin-bottom:14px;position:relative;overflow:hidden;
+  }
+  .road-scene .school{
+    font-size:11px;color:var(--text-dim);display:flex;justify-content:space-between;margin-bottom:6px;
+  }
+  .tank{
+    position:relative;height:88px;border:1px solid var(--border);
+    border-radius:6px;overflow:hidden;background:#081016;
+  }
+  .tank .fill{
+    position:absolute;bottom:0;left:0;right:0;
+    background:linear-gradient(180deg, rgba(63,215,196,0.55), rgba(63,215,196,0.85));
+    transition:height 0.5s ease, background 0.5s ease;
+  }
+  .tank .road-strip{
+    position:absolute;bottom:0;left:0;right:0;height:6px;background:#2a3542;
+  }
+  .tank .marker{
+    position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,0.08);
+    font-family:'IBM Plex Mono';
+  }
+  .tank .marker span{
+    position:absolute;right:6px;top:-8px;font-size:9px;color:var(--text-faint);
+  }
+  .readout{
+    display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;
+  }
+  .readout .level{font-family:'IBM Plex Mono';font-size:28px;font-weight:600;}
+  .readout .label{font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;}
+  .statuschip{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;
+    letter-spacing:0.4px;text-transform:uppercase;font-family:'Space Grotesk';
+  }
+  .controls{display:flex;gap:8px;margin-top:12px;}
+  button{
+    font-family:'Inter';font-size:12.5px;font-weight:500;
+    border:1px solid var(--border);background:var(--panel2);color:var(--text);
+    padding:9px 12px;border-radius:7px;cursor:pointer;transition:all .15s ease;
+    flex:1;
+  }
+  button:hover{border-color:var(--teal);color:var(--teal);}
+  button:active{transform:scale(0.97);}
+  button.primary{background:var(--teal);color:#03181a;border-color:var(--teal);font-weight:600;}
+  button.primary:hover{background:#57e2d1;color:#03181a;}
+  button.ghost{flex:none;padding:9px 14px;}
+  button:disabled{opacity:0.35;cursor:not-allowed;}
+  button:disabled:hover{border-color:var(--border);color:var(--text);}
+
+  .packet{
+    margin-top:14px;border:1px solid var(--border-soft);border-radius:8px;
+    padding:10px 12px;background:#0c1720;
+  }
+  .packet .ptitle{font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .packet pre{margin:0;font-family:'IBM Plex Mono';font-size:11px;line-height:1.6;color:var(--teal);white-space:pre-wrap;}
+  .flowline{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--text-faint);margin-top:10px;font-family:'IBM Plex Mono';flex-wrap:wrap;}
+  .flowline .node{color:var(--text-dim);}
+  .flowline .arrow{color:var(--teal);}
+
+  /* ===== Map / incident center ===== */
+  .citygrid{
+    display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:16px;
+  }
+  .cell{
+    aspect-ratio:1;border-radius:5px;background:var(--panel2);
+    border:1px solid var(--border-soft);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono';font-size:9px;color:var(--text-faint);
+    transition:all .4s ease;position:relative;
+  }
+  .cell.active{
+    background:var(--red-dim);border-color:var(--red);color:var(--red);
+    box-shadow:0 0 0 1px var(--red), 0 0 14px rgba(227,84,89,0.35);
+  }
+  .cell.active::after{
+    content:'';position:absolute;inset:-3px;border-radius:8px;border:1px solid var(--red);
+    opacity:0.5;animation:pulse 1.8s ease-out infinite;
+  }
+  @keyframes pulse{0%{transform:scale(1);opacity:0.5;}100%{transform:scale(1.35);opacity:0;}}
+
+  .incident-card{
+    border:1px solid var(--border-soft);border-radius:9px;padding:14px;
+    background:linear-gradient(180deg, rgba(227,84,89,0.06), transparent);
+    margin-bottom:14px;transition:all .3s ease;
+  }
+  .incident-card.empty{
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    padding:34px 14px;color:var(--text-faint);background:none;
+  }
+  .incident-card.empty .icon{font-size:22px;margin-bottom:8px;opacity:0.5;}
+  .incident-card.empty p{font-size:12px;margin:0;text-align:center;}
+  .incident-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .incident-head .idtag{font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-faint);}
+  .incident-head h3{margin:2px 0 0;font-family:'Space Grotesk';font-size:16px;}
+  .incident-loc{font-size:12px;color:var(--text-dim);margin-top:2px;}
+  .fusion-row{display:flex;align-items:center;gap:8px;margin:12px 0;flex-wrap:wrap;}
+  .chip{
+    font-size:10.5px;font-family:'IBM Plex Mono';padding:4px 8px;border-radius:6px;
+    background:var(--panel2);border:1px solid var(--border);color:var(--text-dim);
+    animation:fadein .35s ease;
+  }
+  @keyframes fadein{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:none;}}
+  .fusion-arrow{color:var(--teal);font-size:13px;}
+  .fusion-result{
+    font-size:11.5px;color:var(--teal);font-family:'IBM Plex Mono';font-weight:500;
+  }
+
+  .reportbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+  .reportbtns button{flex:none;font-size:11.5px;padding:7px 11px;}
+
+  .feed{max-height:170px;overflow-y:auto;padding-right:4px;}
+  .feed::-webkit-scrollbar{width:5px;}
+  .feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+  .feeditem{
+    display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--border-soft);
+    font-size:12px;animation:fadein .3s ease;
+  }
+  .feeditem:last-child{border-bottom:none;}
+  .feeditem .t{font-family:'IBM Plex Mono';font-size:10px;color:var(--text-faint);white-space:nowrap;padding-top:1px;}
+  .feeditem .m{color:var(--text-dim);}
+  .feeditem .m b{color:var(--text);font-weight:500;}
+
+  /* ===== Priority engine ===== */
+  .factor{margin-bottom:12px;}
+  .factor-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;}
+  .factor-top .name{color:var(--text-dim);}
+  .factor-top .score{font-family:'IBM Plex Mono';color:var(--text);}
+  .bar{height:5px;background:var(--panel2);border-radius:4px;overflow:hidden;}
+  .bar .fill{height:100%;border-radius:4px;transition:width .5s ease, background .5s ease;}
+
+  .priority-result{
+    margin-top:16px;padding:14px;border-radius:8px;text-align:center;
+    border:1px solid var(--border-soft);background:var(--panel2);
+  }
+  .priority-result .pscore{font-family:'Space Grotesk';font-size:26px;font-weight:700;letter-spacing:0.5px;}
+  .priority-result .plabel{font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+
+  .deptlist{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .dept{
+    flex:1;min-width:110px;border:1px solid var(--border-soft);border-radius:7px;
+    padding:9px 10px;font-size:12px;background:var(--panel2);
+    display:flex;flex-direction:column;gap:2px;opacity:0.35;transition:opacity .4s ease, border-color .4s ease;
+  }
+  .dept.on{opacity:1;border-color:var(--teal);}
+  .dept .dname{font-weight:600;font-family:'Space Grotesk';font-size:12.5px;}
+  .dept .drole{color:var(--text-faint);font-size:10.5px;}
+
+  /* ===== Closed loop stepper ===== */
+  .stepper{display:flex;flex-direction:column;gap:0;}
+  .step{
+    display:flex;align-items:center;gap:10px;padding:8px 0;position:relative;
+  }
+  .step .num{
+    width:22px;height:22px;border-radius:50%;flex-shrink:0;
+    background:var(--panel2);border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono';font-size:10px;color:var(--text-faint);
+    transition:all .3s ease;z-index:1;
+  }
+  .step .connector{
+    position:absolute;left:11px;top:30px;bottom:-8px;width:1px;background:var(--border);
+  }
+  .step:last-child .connector{display:none;}
+  .step .label{font-size:12.5px;color:var(--text-faint);transition:color .3s ease;}
+  .step.done .num{background:var(--green);border-color:var(--green);color:#04231a;}
+  .step.done .connector{background:var(--green);}
+  .step.done .label{color:var(--text);}
+  .step.active .num{background:var(--teal);border-color:var(--teal);color:#03181a;box-shadow:0 0 0 3px var(--teal-dim);}
+  .step.active .label{color:var(--teal);font-weight:600;}
+
+  .resolved-banner{
+    margin-top:14px;padding:12px;border-radius:8px;background:var(--green-dim);
+    border:1px solid var(--green);text-align:center;animation:fadein .4s ease;
+  }
+  .resolved-banner .rt{font-family:'Space Grotesk';font-weight:600;color:var(--green);font-size:13px;}
+  .resolved-banner .rd{font-size:11px;color:var(--text-dim);margin-top:3px;font-family:'IBM Plex Mono';}
+
+  footer{
+    text-align:center;padding:24px;color:var(--text-faint);font-size:11px;font-family:'IBM Plex Mono';
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="mark">N</div>
+    <div>
+      <h1>NagarPulse</h1>
+      <div class="sub">Incident Command Console · Sector 7 Waterlogging MVP</div>
+    </div>
+  </div>
+  <div class="headright">
+    <div class="sysstatus"><span class="dot" id="sysdot" style="background:var(--green);"></span><span id="systext">System Nominal</span></div>
+    <div class="clock mono" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- LEFT: physical world / sensor -->
+  <div class="col-left">
+    <div class="panel">
+      <h2>Physical Layer <span class="tag">ESP32 · WL-01</span></h2>
+      <div class="road-scene">
+        <div class="school"><span>🏫 School Road — Sector 7</span><span id="tankstatus" class="statuschip" style="background:var(--green-dim);color:var(--green);">NORMAL</span></div>
+        <div class="tank">
+          <div class="marker" style="bottom:33%;"><span>3cm</span></div>
+          <div class="marker" style="bottom:72%;"><span>6.5cm</span></div>
+          <div class="fill" id="fill" style="height:13%;"></div>
+          <div class="road-strip"></div>
+        </div>
+        <div class="readout">
+          <div><div class="level mono" id="levelnum">1.2<span style="font-size:14px;color:var(--text-dim);">cm</span></div></div>
+          <div class="label">Water Level · WL-01</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="btnAdd">💧 Add Water</button>
+        <button id="btnDrain">🛠 Drain / Resolve</button>
+      </div>
+      <button class="ghost" id="btnReset" style="width:100%;margin-top:8px;">↺ Reset Simulation</button>
+
+      <div class="packet">
+        <div class="ptitle">📡 Sensor Payload → Wi-Fi → NagarPulse</div>
+        <pre id="payload">Location: Sector 7
+Issue: Waterlogging
+Water Level: 1.2 cm
+Status: Normal
+Sensor ID: WL-01
+Time: <span id="ptime">--:--</span></pre>
+      </div>
+      <div class="flowline">
+        <span class="node">SENSOR</span><span class="arrow">→</span>
+        <span class="node">ESP32</span><span class="arrow">→</span>
+        <span class="node">WI-FI</span><span class="arrow">→</span>
+        <span class="node" style="color:var(--teal);">NAGARPULSE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: incident map + fusion -->
+  <div class="col-center">
+    <div class="panel">
+      <h2>City Incident Map <span class="tag">Live</span></h2>
+      <div class="citygrid" id="citygrid"></div>
+
+      <div id="incidentWrap">
+        <div class="incident-card empty" id="incidentEmpty">
+          <div class="icon">🛰</div>
+          <p>No active incidents.<br>Monitoring sensor network and citizen reports.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Citizen Reports <span class="tag" id="reportcount">0 filed</span></h2>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:-6px;">Simulate residents reporting the same event from Sector 7.</p>
+      <div class="reportbtns">
+        <button id="rep1">🌊 "Road completely flooded"</button>
+        <button id="rep2">🚦 "Traffic is stuck"</button>
+        <button id="rep3">🏫 "Water near school"</button>
+      </div>
+      <div class="feed" id="feed" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: priority engine + closed loop -->
+  <div class="col-right">
+    <div class="panel">
+      <h2>Priority Engine</h2>
+      <div class="factor">
+        <div class="factor-top"><span class="name">Severity</span><span class="score mono" id="sc-severity">0/5</span></div>
+        <div class="bar"><div class="fill" id="bar-severity" style="width:0%;background:var(--teal);"></div></div>
+      </div>
+      <div class="factor">
+        <div class="factor-top"><span class="name">Public Impact</span><span class="score mono" id="sc-impact">0/5</span></div>
+        <div class="bar"><div class="fill" id="bar-impact" style="width:0%;background:var(--teal);"></div></div>
+      </div>
+      <div class="factor">
+        <div class="factor-top"><span class="name">Location Risk</span><span class="score mono" id="sc-risk">0/5</span></div>
+        <div class="bar"><div class="fill" id="bar-risk" style="width:0%;background:var(--teal);"></div></div>
+      </div>
+      <div class="factor">
+        <div class="factor-top"><span class="name">Urgency</span><span class="score mono" id="sc-urgency">0/5</span></div>
+        <div class="bar"><div class="fill" id="bar-urgency" style="width:0%;background:var(--teal);"></div></div>
+      </div>
+
+      <div class="priority-result">
+        <div class="pscore" id="priorityScore" style="color:var(--text-dim);">—</div>
+        <div class="plabel">Priority Score</div>
+      </div>
+
+      <div class="deptlist">
+        <div class="dept" id="dept-drainage"><span class="dname">🚧 Drainage</span><span class="drole">Field response unit</span></div>
+        <div class="dept" id="dept-traffic"><span class="dname">🚦 Traffic</span><span class="drole">Road control unit</span></div>
+      </div>
+      <button class="primary" id="btnAssign" style="width:100%;margin-top:12px;" disabled>Assign Response Team</button>
+    </div>
+
+    <div class="panel">
+      <h2>Closed-Loop Tracker</h2>
+      <div class="stepper" id="stepper"></div>
+      <div id="resolvedBanner"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>NAGARPULSE PROTOTYPE — Sense → Fuse → Prioritize → Assign → Verify · Simulated telemetry, not live hardware</footer>
+
+<script>
+(function(){
+  const STAGES = ["REPORT","DETECT","FUSE","PRIORITIZE","ASSIGN","RESOLVE","VERIFY","CLOSED"];
+  const state = {
+    level: 1.2,
+    reports: [],
+    incidentOpen: false,
+    incidentId: null,
+    stageIndex: 1, // DETECT is baseline monitoring
+    assigned: false,
+    resolvedFrom: null,
+  };
+
+  const els = {
+    fill: document.getElementById('fill'),
+    levelnum: document.getElementById('levelnum'),
+    tankstatus: document.getElementById('tankstatus'),
+    payload: document.getElementById('payload'),
+    ptime: document.getElementById('ptime'),
+    sysdot: document.getElementById('sysdot'),
+    systext: document.getElementById('systext'),
+    citygrid: document.getElementById('citygrid'),
+    incidentWrap: document.getElementById('incidentWrap'),
+    feed: document.getElementById('feed'),
+    reportcount: document.getElementById('reportcount'),
+    stepper: document.getElementById('stepper'),
+    resolvedBanner: document.getElementById('resolvedBanner'),
+    btnAssign: document.getElementById('btnAssign'),
+    clock: document.getElementById('clock'),
+  };
+
+  // build 6x3 city grid, mark Sector 7 (index arbitrary) as the incident cell
+  const GRID_SIZE = 18;
+  const ACTIVE_CELL = 8;
+  for(let i=0;i<GRID_SIZE;i++){
+    const c = document.createElement('div');
+    c.className='cell';
+    c.id='cell-'+i;
+    c.textContent = 'S'+(i+1);
+    els.citygrid.appendChild(c);
+  }
+
+  function statusFor(level){
+    if(level >= 6.5) return {key:'critical', label:'P1 CRITICAL', color:'var(--red)', dim:'var(--red-dim)'};
+    if(level >= 3) return {key:'warning', label:'WARNING', color:'var(--amber)', dim:'var(--amber-dim)'};
+    return {key:'normal', label:'NORMAL', color:'var(--green)', dim:'var(--green-dim)'};
+  }
+
+  function nowStr(){
+    const d = new Date();
+    return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+  }
+
+  function pct(level){
+    return Math.min(100, Math.max(2, (level/9)*100));
+  }
+
+  function renderTank(){
+    const s = statusFor(state.level);
+    els.fill.style.height = pct(state.level)+'%';
+    els.fill.style.background = s.key==='critical'
+      ? 'linear-gradient(180deg, rgba(227,84,89,0.55), rgba(227,84,89,0.9))'
+      : s.key==='warning'
+      ? 'linear-gradient(180deg, rgba(240,169,60,0.55), rgba(240,169,60,0.9))'
+      : 'linear-gradient(180deg, rgba(63,215,196,0.5), rgba(63,215,196,0.85))';
+    els.levelnum.innerHTML = state.level.toFixed(1)+'<span style="font-size:14px;color:var(--text-dim);">cm</span>';
+    els.tankstatus.textContent = s.label;
+    els.tankstatus.style.background = s.dim;
+    els.tankstatus.style.color = s.color;
+
+    els.payload.innerHTML =
+`Location: Sector 7
+Issue: Waterlogging
+Water Level: ${state.level.toFixed(1)} cm
+Status: ${s.label.replace('P1 ','')}
+Sensor ID: WL-01
+Time: <span id="ptime">${nowStr()}</span>`;
+
+    els.sysdot.style.background = s.color;
+    els.systext.textContent = s.key==='critical' ? 'Active Incident — P1' : s.key==='warning' ? 'Elevated Monitoring' : 'System Nominal';
+
+    document.getElementById('cell-'+ACTIVE_CELL).classList.toggle('active', s.key!=='normal');
+  }
+
+  function autoIncidentCheck(){
+    const s = statusFor(state.level);
+    if(s.key==='critical' && !state.incidentOpen){
+      state.incidentOpen = true;
+      state.incidentId = 'NP-' + Math.floor(1000+Math.random()*9000);
+      pushFeed('🛰 Sensor', 'WL-01 crossed critical threshold — <b>incident auto-created</b>');
+      advanceStage(2); // FUSE begins once reports arrive; but incident itself = DETECT confirmed
+      advanceStage(1); // ensure DETECT marked done
+    }
+    if(s.key!=='critical' && state.incidentOpen && !state.assigned){
+      // dropped back down before assignment — close silently
+    }
+  }
+
+  function advanceStage(idx){
+    if(idx > state.stageIndex) state.stageIndex = idx;
+    renderStepper();
+  }
+
+  function renderStepper(){
+    els.stepper.innerHTML = '';
+    STAGES.forEach((name, i)=>{
+      const done = i < state.stageIndex;
+      const active = i === state.stageIndex;
+      const div = document.createElement('div');
+      div.className = 'step' + (done?' done':'') + (active?' active':'');
+      div.innerHTML = `<div class="num">${done?'✓':(i+1)}</div><div class="label">${name}</div>` + (i<STAGES.length-1?'<div class="connector"></div>':'');
+      els.stepper.appendChild(div);
+    });
+  }
+
+  function pushFeed(who, msg){
+    const item = document.createElement('div');
+    item.className='feeditem';
+    item.innerHTML = `<div class="t">${nowStr()}</div><div class="m"><b>${who}</b> — ${msg}</div>`;
+    els.feed.prepend(item);
+  }
+
+  function renderIncident(){
+    if(!state.incidentOpen){
+      els.incidentWrap.innerHTML = `<div class="incident-card empty" id="incidentEmpty">
+        <div class="icon">🛰</div>
+        <p>No active incidents.<br>Monitoring sensor network and citizen reports.</p>
+      </div>`;
+      return;
+    }
+    const chips = state.reports.map(r=>`<span class="chip">${r}</span>`).join('<span class="fusion-arrow">+</span>');
+    const sensorChip = `<span class="chip" style="border-color:var(--teal);color:var(--teal);">📡 Sensor Alert</span>`;
+    els.incidentWrap.innerHTML = `
+      <div class="incident-card">
+        <div class="incident-head">
+          <div>
+            <div class="idtag">${state.incidentId}</div>
+            <h3>Waterlogging — Sector 7</h3>
+            <div class="incident-loc">📍 School Road · Near NIET Sector 7 crossing</div>
+          </div>
+          <span class="statuschip" style="background:var(--red-dim);color:var(--red);">P1 CRITICAL</span>
+        </div>
+        <div class="fusion-row">
+          ${sensorChip}${state.reports.length?'<span class="fusion-arrow">+</span>'+chips:''}
+        </div>
+        <div class="fusion-result">${1+state.reports.length} inputs → <b>1 actionable incident</b></div>
+      </div>`;
+  }
+
+  function computeFactors(){
+    const s = statusFor(state.level);
+    const severity = s.key==='critical' ? Math.min(5, 3 + Math.round((state.level-6.5)/1.2)) : s.key==='warning' ? 3 : 1;
+    const impact = Math.min(5, 1 + state.reports.length);
+    const risk = state.incidentOpen ? 5 : (s.key==='warning'?3:1); // school-area road nearby
+    const urgency = s.key==='critical' ? 5 : s.key==='warning' ? 3 : 1;
+    return {severity, impact, risk, urgency};
+  }
+
+  function setBar(id, val){
+    const el = document.getElementById('bar-'+id);
+    const sc = document.getElementById('sc-'+id);
+    el.style.width = (val/5*100)+'%';
+    sc.textContent = val+'/5';
+    el.style.background = val>=4 ? 'var(--red)' : val>=3 ? 'var(--amber)' : 'var(--teal)';
+  }
+
+  function renderPriority(){
+    const f = computeFactors();
+    setBar('severity', f.severity);
+    setBar('impact', f.impact);
+    setBar('risk', f.risk);
+    setBar('urgency', f.urgency);
+    const total = f.severity+f.impact+f.risk+f.urgency;
+    const box = document.getElementById('priorityScore');
+    let label, color;
+    if(!state.incidentOpen){ label='—'; color='var(--text-dim)'; }
+    else if(total>=17){ label='P1 · CRITICAL'; color='var(--red)'; }
+    else if(total>=11){ label='P2 · HIGH'; color='var(--amber)'; }
+    else { label='P3 · MODERATE'; color='var(--green)'; }
+    box.textContent = label;
+    box.style.color = color;
+
+    const canAssign = state.incidentOpen && !state.assigned;
+    els.btnAssign.disabled = !canAssign;
+
+    document.getElementById('dept-drainage').classList.toggle('on', state.assigned);
+    document.getElementById('dept-traffic').classList.toggle('on', state.assigned && state.reports.some(r=>r.includes('Traffic')));
+  }
+
+  function renderReportCount(){
+    document.getElementById('reportcount').textContent = state.reports.length + ' filed';
+  }
+
+  function checkResolution(){
+    const s = statusFor(state.level);
+    if(state.assigned && s.key==='normal' && state.stageIndex < 5){
+      advanceStage(5); // RESOLVE
+      pushFeed('🚧 Drainage Team', 'Water level receding — marking incident as resolved');
+      setTimeout(()=>{ advanceStage(6); pushFeed('✅ Verification', 'Sensor confirms level below threshold'); }, 700);
+      setTimeout(()=>{
+        advanceStage(7);
+        state.resolvedFrom = state.resolvedFrom || {from: 7.2, to: state.level};
+        showResolvedBanner();
+      }, 1400);
+    }
+  }
+
+  function showResolvedBanner(){
+    els.resolvedBanner.innerHTML = `
+      <div class="resolved-banner">
+        <div class="rt">🟢 INCIDENT RESOLVED</div>
+        <div class="rd">Water Level 7.2 cm → ${state.level.toFixed(1)} cm</div>
+      </div>`;
+  }
+
+  function renderAll(){
+    renderTank();
+    autoIncidentCheck();
+    renderIncident();
+    renderPriority();
+    renderReportCount();
+    checkResolution();
+  }
+
+  // ===== controls =====
+  document.getElementById('btnAdd').addEventListener('click', ()=>{
+    state.level = Math.min(9, +(state.level + 1.4).toFixed(1));
+    renderAll();
+  });
+  document.getElementById('btnDrain').addEventListener('click', ()=>{
+    state.level = Math.max(0.5, +(state.level - 1.8).toFixed(1));
+    renderAll();
+  });
+  document.getElementById('btnReset').addEventListener('click', ()=>{
+    state.level = 1.2;
+    state.reports = [];
+    state.incidentOpen = false;
+    state.incidentId = null;
+    state.stageIndex = 1;
+    state.assigned = false;
+    state.resolvedFrom = null;
+    els.feed.innerHTML = '';
+    els.resolvedBanner.innerHTML = '';
+    renderAll();
+  });
+  document.getElementById('btnAssign').addEventListener('click', ()=>{
+    if(!state.incidentOpen || state.assigned) return;
+    state.assigned = true;
+    advanceStage(4);
+    pushFeed('🧭 Priority Engine', 'Response team assigned — Drainage + Traffic dispatched');
+    renderAll();
+  });
+
+  const reportTexts = {
+    rep1: '🌊 Road flooded',
+    rep2: '🚦 Traffic stuck',
+    rep3: '🏫 Water near school',
+  };
+  ['rep1','rep2','rep3'].forEach(id=>{
+    document.getElementById(id).addEventListener('click', ()=>{
+      if(!state.incidentOpen){
+        pushFeed('⚠️ System', 'No active incident to attach this report to yet — raise water level first');
+        return;
+      }
+      const text = reportTexts[id];
+      if(state.reports.includes(text)) return;
+      state.reports.push(text);
+      pushFeed('👤 Citizen Report #' + (100+state.reports.length), `"${text.replace(/^[^ ]+ /,'')}"`);
+      if(state.stageIndex < 3) advanceStage(3); // FUSE
+      renderAll();
+    });
+  });
+
+  // clock
+  function tickClock(){
+    els.clock.textContent = new Date().toLocaleTimeString('en-IN',{hour12:true});
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  renderStepper();
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
